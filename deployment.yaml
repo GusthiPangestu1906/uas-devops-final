@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uas-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: uas-app
+  template:
+    metadata:
+      labels:
+        app: uas-app
+    spec:
+      containers:
+      - name: web
+        # Menggunakan username 'gusthi'
+        image: gusthi/uas-devops:latest
+        ports:
+        - containerPort: 80
+      # Kunci rahasia yang sudah kita buat
+      imagePullSecrets:
+      - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: uas-service
+spec:
+  type: NodePort
+  selector:
+    app: uas-app
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30000

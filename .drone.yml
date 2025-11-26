@@ -1,0 +1,53 @@
+kind: pipeline
+type: docker
+name: default
+
+steps:
+# 1. BUILD & PUSH KE DOCKER HUB (Otomatis)
+- name: build-push
+  image: plugins/docker
+  settings:
+    # Menggunakan username 'gusthi'
+    repo: gusthi/uas-devops
+    tags: [ latest, "${DRONE_COMMIT_SHA:0:8}" ]
+    username:
+      from_secret: DOCKER_USERNAME
+    password:
+      from_secret: DOCKER_PASSWORD
+
+# 2. SCAN KEAMANAN (TRIVY)
+- name: security-scan
+  image: aquasec/trivy
+  commands:
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL gusthi/uas-devops:${DRONE_COMMIT_SHA:0:8}
+
+# 3. DEPLOY KE DEV (Otomatis)
+- name: deploy-dev
+  image: sinlead/drone-kubectl
+  settings:
+    # IP Kubernetes (Minikube internal)
+    kubernetes_server: https://192.168.49.2:8443
+    # Catatan: Jika IP ini gagal, nanti kita cek IP Minikube yang benar
+    kubernetes_token:
+      from_secret: KUBE_TOKEN
+    commands:
+      # Update image di namespace DEV
+      - kubectl set image deployment/uas-app web=gusthi/uas-devops:${DRONE_COMMIT_SHA:0:8} -n dev-gusthi
+  when:
+    branch:
+    - main
+
+# 4. DEPLOY KE STAGING (Manual Approval - Syarat Level 3)
+- name: deploy-staging-manual
+  image: sinlead/drone-kubectl
+  settings:
+    kubernetes_server: https://192.168.49.2:8443
+    kubernetes_token:
+      from_secret: KUBE_TOKEN
+    commands:
+      # Update image di namespace STAGING
+      - kubectl set image deployment/uas-app web=gusthi/uas-devops:${DRONE_COMMIT_SHA:0:8} -n staging-gusthi
+  trigger: manual
+  when:
+    branch:
+    - main
