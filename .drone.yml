@@ -47,8 +47,7 @@ steps:
     commands:
       # Update image di namespace STAGING
       - kubectl set image deployment/uas-app web=gusthi/uas-devops:${DRONE_COMMIT_SHA:0:8} -n staging-gusthi
+  trigger: manual  
   when:
-    event:
-    - promote
-    target:
-    - staging
+    branch:       
+    - main
